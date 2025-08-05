@@ -336,63 +336,66 @@ function lukittu_GenerateKey($inputString) {
     return strtoupper($licenseFormatted);
 }
 
+function lukittu_CreateLicense(array $params, array $options): array
+{
+    $endpoint = "/licenses";
+
+    $payload = [
+        "customerIds" => [$options['customerId']],
+        "productIds" => [$options['productId']],
+        "expirationDate" => $options['expirationDate'] ?? null,
+        "expirationDays" => isset($options['expirationDays']) ? (int)$options['expirationDays'] : null,
+        "expirationStart" => $options['expirationStart'],
+        "expirationType" => $options['expirationType'],
+        "ipLimit" => isset($options['ipLimit']) ? (int)$options['ipLimit'] : 0,
+        "metadata" => $options['metadata'] ?? [],
+        "seats" => isset($options['seats']) ? (int)$options['seats'] : 1,
+        "suspended" => $options['suspended'] ?? false,
+        "sendEmailDelivery" => $options['sendEmailDelivery'] ?? false
+    ];
+
+    $response = lukittu_API($params, $endpoint, $payload, "POST");
+
+    return $response;
+}
+
 function lukittu_CreateAccount(array $params)
 {
     try {
         $username = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
-        $suspended = false;
-        $sendEmails = false;
-
         $serviceid = 'WHMCS-' . $params['serviceid'];
 
-        $iplimit = lukittu_GetOption($params, 'iplimit');
-        $seats = lukittu_GetOption($params, 'seats');
-        
-        $customerid = lukittu_GetOption($params, 'customerid');
-        $productid = lukittu_GetOption($params, 'productid');
-
-        $expirationType = lukittu_GetOption($params, 'expirationtype');
-        $expirationStart = lukittu_GetOption($params, 'expirationstart');
-        $expirationDate = lukittu_GetOption($params, 'expirationdate');
-        $expirationDays = lukittu_GetOption($params, 'expirationdays');
-
-        $metadata = [
-            [
-                "key" => "serviceid",
-                "value" => $serviceid,
-                "locked" => true
-            ],
-            [
-                "key" => "username",
-                "value" => $username,
-                "locked" => false
+        $options = [
+            "customerId" => lukittu_GetOption($params, 'customerid'),
+            "productId" => lukittu_GetOption($params, 'productid'),
+            "expirationType" => lukittu_GetOption($params, 'expirationtype'),
+            "expirationStart" => lukittu_GetOption($params, 'expirationstart'),
+            "expirationDate" => lukittu_GetOption($params, 'expirationdate'),
+            "expirationDays" => lukittu_GetOption($params, 'expirationdays'),
+            "ipLimit" => lukittu_GetOption($params, 'iplimit'),
+            "seats" => lukittu_GetOption($params, 'seats'),
+            "suspended" => false,
+            "sendEmailDelivery" => false,
+            "metadata" => [
+                [
+                    "key" => "serviceid",
+                    "value" => $serviceid,
+                    "locked" => true
+                ],
+                [
+                    "key" => "username",
+                    "value" => $username,
+                    "locked" => false
+                ]
             ]
         ];
 
-
-        $endpoint = "/licenses";
-
-        $inputString = $params['serviceid'] . '-' . $params['username'];
-
-        $data = [
-            "customerIds" => [$customerid],
-            "productIds" => [$productid],
-            "expirationDate" => $expirationDate,
-            "expirationDays" => (int) $expirationDays,
-            "expirationStart" => $expirationStart,
-            "expirationType" => $expirationType,
-            "ipLimit" => (int) $iplimit,
-            "metadata" => $metadata,
-            "seats" => (int) $seats,
-            "suspended" => $suspended,
-            "sendEmailDelivery" => $sendEmails
-        ];
-
-        $response = lukittu_API($params, $endpoint, $data, "POST");
+        $response = lukittu_CreateLicense($params, $options);
 
         if ($response['status_code'] !== 200) {
-            throw new Exception("Failed to execute command. Status code: {$response['status_code']}");
+            throw new Exception("Failed to create license. Status code: {$response['status_code']}");
         }
+
     } catch (Exception $e) {
         return $e->getMessage();
     }
