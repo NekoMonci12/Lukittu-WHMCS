@@ -322,6 +322,18 @@ function lukittu_GetKey(array $params, string $username, string $serviceid): ?st
     return null;
 }
 
+function lukittu_DeleteLicense(array $params, string $licenseKey): bool
+{
+    $endpoint = "/licenses/{$licenseKey}";
+    $response = lukittu_API($params, $endpoint, [], "DELETE");
+
+    if ($response['status_code'] >= 400) {
+        $message = $response['message'] ?? 'Unknown error';
+        throw new Exception("Failed to delete license {$licenseKey}. Status: {$response['status_code']} - {$message}");
+    }
+
+    return true;
+}
 
 function lukittu_GenerateKey($inputString) {
     $licenseHashed = md5($inputString);
@@ -336,7 +348,7 @@ function lukittu_GenerateKey($inputString) {
     return strtoupper($licenseFormatted);
 }
 
-function lukittu_CreateLicenseIfNotExists(array $params, array $options): string
+function lukittu_CreateLicense(array $params, array $options): string
 {
     $username = $options['username'];
     $serviceid = $options['serviceid'];
@@ -403,7 +415,7 @@ function lukittu_CreateAccount(array $params)
             "serviceid" => $serviceid
         ];
 
-        lukittu_CreateLicenseIfNotExists($params, $options);
+        lukittu_CreateLicense($params, $options);
     } catch (Exception $e) {
         return $e->getMessage();
     }
@@ -414,138 +426,71 @@ function lukittu_CreateAccount(array $params)
 function lukittu_SuspendAccount(array $params)
 {
     try {
-        // Generate key input
-        $inputString = $params['serviceid'] . '-' . $params['username'];
-        $keyResponse = lukittu_GetKey($params, lukittu_GenerateKey($inputString));
+        $serviceid = 'WHMCS-' . $params['serviceid'];
+        $username = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
 
-        // Validate API response
-        $success = isset($keyResponse['success']) 
-           && $keyResponse['success'] 
-           && isset($keyResponse['data']['id']);
+        $licenseKey = lukittu_GetKey($params, $username, $serviceid);
 
-        if (!$success) {
-            throw new Exception("Failed to check account. Response: " . json_encode($keyResponse));
+        if ($licenseKey === null) {
+            return 'No license found to suspend';
         }
 
+        lukittu_DeleteLicense($params, $licenseKey);
 
-        // Construct endpoint
-        $endpoint = '/' . $keyResponse['data']['id'];
-        $name = $keyResponse['data']['name'];
-        $notes = $keyResponse['data']['notes'];
-        $limit = $keyResponse['data']['ipLimit'];
-        $scope = $keyResponse['data']['licenseScope'];
-        $vtokens = $keyResponse['data']['validationPoints'];
-        $vlimit = $keyResponse['data']['validationLimit'];
-        $rinterval = $keyResponse['data']['replenishInterval'];
-        $licenseKey = $keyResponse['data']['licenseKey'];
-
-        // Data payload
-        $dataPayload = [
-            "licenseKey" => $licenseKey,
-            "active" => false,
-            "name" => $name,
-            "notes" => $notes,
-            "ipLimit" => $limit,
-            "licenseScope" => $scope,
-            "expirationDate" => "9999-12-31T23:59:59",
-            "validationPoints" => $vtokens,
-            "validationLimit" => $vlimit,
-            "replenishAmount" => $vtokens,
-            "replenishInterval" => $rinterval,
-        ];
-
-        // Make API request
-        $response = lukittu_API($params, $endpoint, $dataPayload, "PATCH");
-
-        // Validate API response
-        if (!isset($response['status_code']) || $response['status_code'] !== 200) {
-            throw new Exception("Failed to suspend account. Response: " . json_encode($response));
-        }
-
+        return 'success';
     } catch (Exception $e) {
-        return "Error: " . $e->getMessage();
+        return 'Error during suspension: ' . $e->getMessage();
     }
 
-    return "success";
+    return 'success';
 }
-
 
 function lukittu_UnsuspendAccount(array $params)
 {
     try {
-        // Generate key input
-        $inputString = $params['serviceid'] . '-' . $params['username'];
-        $keyResponse = lukittu_GetKey($params, lukittu_GenerateKey($inputString));
+        $username = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
+        $serviceid = 'WHMCS-' . $params['serviceid'];
 
-        // Validate API response
-        $success = isset($keyResponse['success']) 
-            && $keyResponse['success'] 
-            && isset($keyResponse['data']['id']);
-
-        if (!$success) {
-            throw new Exception("Failed to check account. Response: " . json_encode($keyResponse));
-        }
-
-        // Construct endpoint
-        $endpoint = '/' . $keyResponse['data']['id'];
-        $name = $keyResponse['data']['name'];
-        $notes = $keyResponse['data']['notes'];
-        $limit = $keyResponse['data']['ipLimit'];
-        $scope = $keyResponse['data']['licenseScope'];
-        $vtokens = $keyResponse['data']['validationPoints'];
-        $vlimit = $keyResponse['data']['validationLimit'];
-        $rinterval = $keyResponse['data']['replenishInterval'];
-        $licenseKey = $keyResponse['data']['licenseKey'];
-
-        // Data payload
-        $dataPayload = [
-            "licenseKey" => $licenseKey,
-            "active" => true,
-            "name" => $name,
-            "notes" => $notes,
-            "ipLimit" => $limit,
-            "licenseScope" => $scope,
-            "expirationDate" => "9999-12-31T23:59:59",
-            "validationPoints" => $vtokens,
-            "validationLimit" => $vlimit,
-            "replenishAmount" => $vtokens,
-            "replenishInterval" => $rinterval,
+        $options = [
+            "customerId" => lukittu_GetOption($params, 'customerid'),
+            "productId" => lukittu_GetOption($params, 'productid'),
+            "expirationType" => lukittu_GetOption($params, 'expirationtype'),
+            "expirationStart" => lukittu_GetOption($params, 'expirationstart'),
+            "expirationDate" => lukittu_GetOption($params, 'expirationdate'),
+            "expirationDays" => lukittu_GetOption($params, 'expirationdays'),
+            "ipLimit" => lukittu_GetOption($params, 'iplimit'),
+            "seats" => lukittu_GetOption($params, 'seats'),
+            "suspended" => false,
+            "sendEmailDelivery" => false,
+            "username" => $username,
+            "serviceid" => $serviceid
         ];
 
-        // Make API request
-        $response = lukittu_API($params, $endpoint, $dataPayload, "PATCH");
-
-        // Validate API response
-        if (!isset($response['status_code']) || $response['status_code'] !== 200) {
-            throw new Exception("Failed to suspend account. Response: " . json_encode($response));
-        }
-
+        lukittu_CreateLicense($params, $options);
     } catch (Exception $e) {
-        return "Error: " . $e->getMessage();
+        return $e->getMessage();
     }
 
-    return "success";
+    return 'success';
 }
 
 function lukittu_TerminateAccount(array $params)
 {
     try {
-        $inputString = $params['serviceid'] . '-' . $params['username'];
-        $keyResponse = lukittu_GetKey($params, lukittu_GenerateKey($inputString));
+        $serviceid = 'WHMCS-' . $params['serviceid'];
+        $username = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
 
-        if ($keyResponse['success']) {
-            $endpoint = '/' . $keyResponse['data']['id'];
-        } else {
-            throw new Exception("Failed to check account. Status code: {$response['status_code']}");
+        $licenseKey = lukittu_GetKey($params, $username, $serviceid);
+
+        if ($licenseKey === null) {
+            return 'No license found to suspend';
         }
 
-        $response = lukittu_API($params, $endpoint, [], "DELETE");
+        lukittu_DeleteLicense($params, $licenseKey);
 
-        if ($response['status_code'] !== 200) {
-            throw new Exception("Failed to terminate account. Status code: {$response['status_code']}");
-        }
+        return 'success';
     } catch (Exception $e) {
-        return $e->getMessage();
+        return 'Error during suspension: ' . $e->getMessage();
     }
 
     return 'success';
@@ -565,44 +510,35 @@ function lukittu_ChangePassword(array $params)
 function lukittu_ChangePackage(array $params)
 {
     try {
-        $active = true;
-        $notes = lukittu_GetOption($params, 'notes', 'Created From WHMCS');
-        $limit = lukittu_GetOption($params, 'limit');
-        $scope = lukittu_GetOption($params, 'scope');
-        $vtokens = lukittu_GetOption($params, 'vtokens', $limit * 3);
-        $vlimit = lukittu_GetOption($params, 'vlimit', $vtokens * 3);
-        $rinterval = lukittu_GetOption($params, 'rinterval', 'HOUR');
+        $serviceid = 'WHMCS-' . $params['serviceid'];
+        $username = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
 
-        $inputString = $params['serviceid'] . '-' . $params['username'];
-        $keyResponse = lukittu_GetKey($params, lukittu_GenerateKey($inputString));
+        $licenseKey = lukittu_GetKey($params, $username, $serviceid);
 
-        if ($keyResponse['success']) {
-            $endpoint = '/' . $keyResponse['data']['id'];
-        } else {
-            throw new Exception("Failed to check account. Status code: {$response['status_code']}");
+        if ($licenseKey !== null) {
+            lukittu_DeleteLicense($params, $licenseKey);
         }
-        $licenseKey = $keyResponse['data']['licenseKey'];
 
-        $dataPayload = [
-            "licenseKey" => $licenseKey,
-            "active" => $active,
-            "notes" => $notes,
-            "ipLimit" => $limit,
-            "licenseScope" => $scope,
-            "expirationDate" => "9999-12-31T23:59:59",
-            "validationPoints" => $vtokens,
-            "validationLimit" => $vlimit,
-            "replenishAmount" => $vtokens,
-            "replenishInterval" => $rinterval,
+        $options = [
+            "customerId" => lukittu_GetOption($params, 'customerid'),
+            "productId" => lukittu_GetOption($params, 'productid'),
+            "expirationType" => lukittu_GetOption($params, 'expirationtype'),
+            "expirationStart" => lukittu_GetOption($params, 'expirationstart'),
+            "expirationDate" => lukittu_GetOption($params, 'expirationdate'),
+            "expirationDays" => lukittu_GetOption($params, 'expirationdays'),
+            "ipLimit" => lukittu_GetOption($params, 'iplimit'),
+            "seats" => lukittu_GetOption($params, 'seats'),
+            "suspended" => false,
+            "sendEmailDelivery" => false,
+            "username" => $username,
+            "serviceid" => $serviceid
         ];
 
-        $response = lukittu_API($params, $endpoint, $dataPayload, "PATCH");
+        lukittu_CreateLicense($params, $options);
 
-        if ($response['status_code'] !== 200) {
-            throw new Exception("Failed to update account. Status code: {$response['status_code']}");
-        }
+        return 'success';
     } catch (Exception $e) {
-        return $e->getMessage();
+        return 'Error during package change: ' . $e->getMessage();
     }
 
     return 'success';
@@ -611,82 +547,35 @@ function lukittu_ChangePackage(array $params)
 function lukittu_Renew(array $params)
 {
     try {
-        $inputString = $params['serviceid'] . '-' . $params['username'];
-        $keyResponse = lukittu_GetKey($params, lukittu_GenerateKey($inputString));
-        if ($keyResponse['success']) {
-            $endpoint = '/' . $keyResponse['data']['id'];
-        } else {
-            throw new Exception("Failed to check account. Status code: {$response['status_code']}");
+        $serviceid = 'WHMCS-' . $params['serviceid'];
+        $username = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
+
+        $licenseKey = lukittu_GetKey($params, $username, $serviceid);
+
+        if ($licenseKey !== null) {
+            lukittu_DeleteLicense($params, $licenseKey);
         }
 
-        $checker = lukittu_API($params, $endpoint, [], 'GET');
+        $options = [
+            "customerId" => lukittu_GetOption($params, 'customerid'),
+            "productId" => lukittu_GetOption($params, 'productid'),
+            "expirationType" => lukittu_GetOption($params, 'expirationtype'),
+            "expirationStart" => lukittu_GetOption($params, 'expirationstart'),
+            "expirationDate" => lukittu_GetOption($params, 'expirationdate'),
+            "expirationDays" => lukittu_GetOption($params, 'expirationdays'),
+            "ipLimit" => lukittu_GetOption($params, 'iplimit'),
+            "seats" => lukittu_GetOption($params, 'seats'),
+            "suspended" => false,
+            "sendEmailDelivery" => false,
+            "username" => $username,
+            "serviceid" => $serviceid
+        ];
 
-        if($checker['status_code'] == 200) {
-            $active = true;
-            $notes = lukittu_GetOption($params, 'notes', 'Created From WHMCS');
-            $limit = lukittu_GetOption($params, 'limit');
-            $scope = lukittu_GetOption($params, 'scope');
-            $vtokens = lukittu_GetOption($params, 'vtokens', $limit * 3);
-            $vlimit = lukittu_GetOption($params, 'vlimit', $vtokens * 3);
-            $rinterval = lukittu_GetOption($params, 'rinterval', 'HOUR');
+        lukittu_CreateLicense($params, $options);
 
-            $inputString = $params['serviceid'] . '-' . $params['username'];
-            $endpoint = lukittu_GenerateKey($inputString);
-
-            $dataPayload = [
-                "licenseKey" => $licenseKey,
-                "active" => $active,
-                "notes" => $notes,
-                "ipLimit" => $limit,
-                "licenseScope" => $scope,
-                "expirationDate" => "9999-12-31T23:59:59",
-                "validationPoints" => $vtokens,
-                "validationLimit" => $vlimit,
-                "replenishAmount" => $vtokens,
-                "replenishInterval" => $rinterval,
-            ];
-
-            $response = lukittu_API($params, $endpoint, $dataPayload, "PATCH");
-
-            if ($response['status_code'] !== 200) {
-                throw new Exception("Failed to execute command. Status code: {$response['status_code']}");
-            }
-        } else {
-            $name = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
-            $active = true;
-            $notes = lukittu_GetOption($params, 'notes', 'Created From WHMCS');
-            $limit = lukittu_GetOption($params, 'limit');
-            $scope = lukittu_GetOption($params, 'scope');
-            $vtokens = lukittu_GetOption($params, 'vtokens', $limit * 3);
-            $vlimit = lukittu_GetOption($params, 'vlimit', $vtokens * 3);
-            $rinterval = lukittu_GetOption($params, 'rinterval', 'HOUR');
-            $endpoint = "";
-
-            $inputString = $params['serviceid'] . '-' . $params['username'];
-            $licenseKey = lukittu_GenerateKey($inputString);
-
-            $dataPayload = [
-                "active" => $active,
-                "name" => $name,
-                "notes" => $notes,
-                "ipLimit" => $limit,
-                "licenseScope" => $scope,
-                "expirationDate" => "9999-12-31T23:59:59",
-                "validationPoints" => $vtokens,
-                "validationLimit" => $vlimit,
-                "replenishAmount" => $vtokens,
-                "replenishInterval" => $rinterval,
-                "licenseKey" => $licenseKey,
-            ];
-
-            $response = lukittu_API($params, $endpoint, $dataPayload, "POST");
-
-            if ($response['status_code'] !== 201) {
-                throw new Exception("Failed to execute command. Status code: {$response['status_code']}");
-            }
-        }
+        return 'success';
     } catch (Exception $e) {
-        return $e->getMessage();
+        return 'Error during package change: ' . $e->getMessage();
     }
 
     return 'success';
