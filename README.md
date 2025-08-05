@@ -16,6 +16,7 @@ WHMCS-Root/
 3. Fill The Configuration & Save Your Changes
 ```
 hostname: YOUR_LUKITTU_BACKEND_DOMAIN
+username: YOUR_LUKITTU_TEAM_ID
 password: YOUR_LUKITTU_USER_API_KEY
 ```
 4. Navigate To `Your WHMCS Sites > System Settings > Servers` and Create New Groups
