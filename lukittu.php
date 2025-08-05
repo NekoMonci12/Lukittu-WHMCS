@@ -221,15 +221,13 @@ function lukittu_TestConnection(array $params) {
 
     $err = "";
     try {
-        $response = lukittu_API($params, '/key/WHMCS', [], 'GET');
+        $response = lukittu_API($params, '/licenses', [], 'GET');
 
         if($response['status_code'] !== 200) {
             $status_code = $response['status_code'];
             $err = "Invalid status_code received: " . $status_code . ". Possible solutions: "
                 . (isset($solutions[$status_code]) ? $solutions[$status_code] : "None.");
-        } else {
-            $err = "Authentication successful";
-        }
+        } 
     } catch(Exception $e) {
         lukittu_Error(__FUNCTION__, $params, $e);
         $err = $e->getMessage();
