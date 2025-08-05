@@ -260,32 +260,66 @@ function lukittu_TestConnection(array $params) {
     ];
 }
 
-function lukittu_GetKey($params, $licenseKey) {
-    $target = '/key/' . $licenseKey;
+function lukittu_GetLicenseList(array $params, ?string $customerId = null, ?string $productId = null): array
+{
+    $allLicenses = [];
+    $page = 1;
 
-    try {
-        $response = lukittu_API($params, $target, [], 'GET');
-
-        // Log raw response for debugging
-        logModuleCall("Lukittu", "GetKey Raw Response", json_encode($response), "");
-
-        // Ensure response is an array
-        if (!is_array($response)) {
-            $response = json_decode(json_encode($response), true); // Convert object to array
-        }
-
-        if (!isset($response['id'])) {
-            return ["success" => false, "error" => "ID not found in response"];
-        }
-
-        return [
-            "success" => true,
-            "data" => $response,
+    do {
+        $query = [
+            'page' => $page
         ];
-    } catch (Exception $e) {
-        logModuleCall("Lukittu", "GetKey Exception", $e->getMessage(), $e->getTraceAsString());
-        return ["success" => false, "error" => $e->getMessage()];
+
+        if (!empty($customerId)) {
+            $query['customerId'] = $customerId;
+        }
+
+        if (!empty($productId)) {
+            $query['productId'] = $productId;
+        }
+
+        $endpoint = '/licenses?' . http_build_query($query);
+        $response = lukittu_API($params, $endpoint, [], 'GET');
+
+        if ($response['status_code'] >= 400) {
+            $message = $response['message'] ?? 'Unknown error';
+            throw new Exception("Lukittu API Error ({$response['status_code']}): $message");
+        }
+
+        $licenses = $response['data']['licenses'] ?? [];
+        $hasNextPage = $response['data']['hasNextPage'] ?? false;
+
+        $allLicenses = array_merge($allLicenses, $licenses);
+        $page++;
+    } while ($hasNextPage);
+
+    return $allLicenses;
+}
+
+function lukittu_GetKey(array $params, string $username, string $serviceid): ?string
+{
+    $licenses = lukittu_GetLicenseList($params);
+
+    foreach ($licenses as $license) {
+        $metadata = $license['metadata'] ?? [];
+        $matchedUsername = false;
+        $matchedServiceId = false;
+
+        foreach ($metadata as $meta) {
+            if ($meta['key'] === 'username' && $meta['value'] === $username) {
+                $matchedUsername = true;
+            }
+            if ($meta['key'] === 'serviceid' && $meta['value'] === $serviceid) {
+                $matchedServiceId = true;
+            }
+        }
+
+        if ($matchedUsername && $matchedServiceId) {
+            return $license['licenseKey'];
+        }
     }
+
+    return null;
 }
 
 
@@ -648,8 +682,9 @@ function lukittu_Renew(array $params)
 }
 
 function lukittu_ClientArea($params) {
-    $inputString = $params['serviceid'] . '-' . $params['username'];
-    $licenseKey = lukittu_GenerateKey($inputString);
+    $serviceid = 'WHMCS-' . $params['serviceid'];
+    $username = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
+    $licenseKey = lukittu_GetKey($params, $username, $serviceid);
 
     return array(
         'tabOverviewReplacementTemplate' => 'templates/clientarea.tpl',
