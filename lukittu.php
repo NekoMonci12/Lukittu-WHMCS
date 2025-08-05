@@ -63,7 +63,7 @@ function lukittu_GetTeamID(array $params) {
 }
 
 function lukittu_API(array $params, $endpoint, array $data = [], $method = "GET", $dontLog = false) {
-    $url = lukittu_GetHostname($params) . '/api/v1/dev/teams/' . lukittu_GetTeamID($params) . '/' . $endpoint;
+    $url = lukittu_GetHostname($params) . '/api/v1/dev/teams/' . lukittu_GetTeamID($params) . $endpoint;
 
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_URL, $url);
@@ -221,7 +221,7 @@ function lukittu_TestConnection(array $params) {
 
     $err = "";
     try {
-        $response = lukittu_API($params, '/licenses', [], 'GET');
+        $response = lukittu_API($params, 'licenses', [], 'GET');
 
         if($response['status_code'] !== 200) {
             $status_code = $response['status_code'];
@@ -286,29 +286,52 @@ function lukittu_CreateAccount(array $params)
     try {
         $name = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
         $active = true;
-        $notes = lukittu_GetOption($params, 'notes', 'Created From WHMCS');
-        $limit = lukittu_GetOption($params, 'limit');
-        $scope = lukittu_GetOption($params, 'scope');
-        $vtokens = lukittu_GetOption($params, 'vtokens', $limit * 3);
-        $vlimit = lukittu_GetOption($params, 'vlimit', $vtokens * 3);
-        $rinterval = lukittu_GetOption($params, 'rinterval', 'HOUR');
-        $endpoint = "";
+        $sendEmails = true;
+
+        $username = $params['username'];
+        $serviceid = 'WHMCS-' . $params['serviceid'];
+
+        $iplimit = lukittu_GetOption($params, 'iplimit');
+        $seats = lukittu_GetOption($params, 'seats');
+        
+        $customerid = lukittu_GetOption($params, 'customerid');
+        $productid = lukittu_GetOption($params, 'productid');
+
+        $expirationType = lukittu_GetOption($params, 'expirationtype');
+        $expirationStart = lukittu_GetOption($params, 'expirationstart');
+        $expirationDate = lukittu_GetOption($params, 'expirationdate');
+        $expirationDays = lukittu_GetOption($params, 'expirationdays');
+
+        $metadata = [
+            [
+                "key" => "serviceid",
+                "value" => $serviceid,
+                "locked" => true
+            ],
+            [
+                "key" => "username",
+                "value" => $username,
+                "locked" => false
+            ]
+        ];
+
+
+        $endpoint = "licenses";
 
         $inputString = $params['serviceid'] . '-' . $params['username'];
-        $licenseKey = lukittu_GenerateKey($inputString);
 
         $data = [
-            "active" => $active,
-            "name" => $name,
-            "notes" => $notes,
-            "ipLimit" => $limit,
-            "licenseScope" => $scope,
-            "expirationDate" => "9999-12-31T23:59:59",
-            "validationPoints" => $vtokens,
-            "validationLimit" => $vlimit,
-            "replenishAmount" => $vtokens,
-            "replenishInterval" => $rinterval,
-            "licenseKey" => $licenseKey,
+            "customerIds" => [$customerid],
+            "productIds" => [$productid],
+            "expirationDate" => $expirationDate,
+            "expirationDays" => $expirationDays,
+            "expirationStart" => (int) $expirationStart,
+            "expirationType" => $expirationType,
+            "ipLimit" => $iplimit,
+            "metadata" => $metadata,
+            "seats" => $seats,
+            "suspended" => $active,
+            "sendEmailDelivery" => $sendEmails
         ];
 
         $response = lukittu_API($params, $endpoint, $data, "POST");
