@@ -116,48 +116,65 @@ function lukittu_MetaData() {
 
 function lukittu_ConfigOptions() {
     return [
-        "notes" => [
-            "FriendlyName" => "License Notes",
+        "customerid" => [
+            "FriendlyName" => "Customer ID",
             "Description" => "",
             "Type" => "text",
             "Size" => 10,
         ],
-        "vlimit" => [
-            "FriendlyName" => "Max Tokens",
+        "productid" => [
+            "FriendlyName" => "Product ID",
             "Description" => "",
             "Type" => "text",
             "Size" => 10,
         ],
-        "limit" => [
+        "iplimit" => [
             "FriendlyName" => "IP Limit",
             "Description" => "",
             "Type" => "text",
-            "Default" => "1",
             "Size" => 10,
+            "Default" => 1,
         ],
-        "vtokens" => [
-            "FriendlyName" => "Validation Tokens",
+        "seats" => [
+            "FriendlyName" => "License Seats",
             "Description" => "",
             "Type" => "text",
             "Size" => 10,
+            "Default" => 1,
         ],
-        "scope" => [
-            "FriendlyName" => "License Scope",
-            "Description" => "",
-            "Type" => "text",
-            "Size" => 10,
-        ],
-        "rinterval" => [
-            "FriendlyName" => "Replenish Interval",
+        "expirationtype" => [
+            "FriendlyName" => "Expiration Type",
             "Description" => "",
             "Type" => "dropdown",
             "Options" => [
-                "TEN_SECONDS" => "10 Seconds",
-                "MINUTE" => "1 Minute",
-                "HOUR" => "Hourly",
-                "DAY" => "Daily",
+                "NEVER" => "Never",
+                "DATE" => "specific Date",
+                "DURATION" => "Time Duration",
             ],
         ],
+        "expirationstart" => [
+            "FriendlyName" => "Expiration Start",
+            "Description" => "",
+            "Type" => "dropdown",
+            "Options" => [
+                "CREATION" => "When Created",
+                "ACTIVATION" => "When Activated",
+            ],
+        ],
+        "expirationdate" => [
+            "FriendlyName" => "Expiration Date",
+            "Description" => "YYYY-MM-DD",
+            "Type" => "text",
+            "Size" => 10,
+            "Default" => "9999-12-31",
+        ],
+        "expirationdays" => [
+            "FriendlyName" => "Expiration Days",
+            "Description" => "",
+            "Type" => "text",
+            "Size" => 10,
+            "Default" => 30,
+        ]
     ];
 }
 
