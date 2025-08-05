@@ -49,7 +49,7 @@ function lukittu_GetHostname(array $params) {
 }
 
 function lukittu_GetTeamID(array $params) {
-    $teamId = $params['username'];
+    $teamId = $params['serverusername'];
     if ($teamId === '') throw new Exception('Could not find the panel\'s TeamID - did you configure server group for the product?');
 
     // For whatever reason, WHMCS converts some characters of the hostname to their literal meanings (- => dash, etc) in some cases
@@ -120,26 +120,26 @@ function lukittu_ConfigOptions() {
             "FriendlyName" => "Customer ID",
             "Description" => "",
             "Type" => "text",
-            "Size" => 10,
+            "Size" => 25,
         ],
         "productid" => [
             "FriendlyName" => "Product ID",
             "Description" => "",
             "Type" => "text",
-            "Size" => 10,
+            "Size" => 25,
         ],
         "iplimit" => [
             "FriendlyName" => "IP Limit",
             "Description" => "",
             "Type" => "text",
-            "Size" => 10,
+            "Size" => 25,
             "Default" => 1,
         ],
         "seats" => [
             "FriendlyName" => "License Seats",
             "Description" => "",
             "Type" => "text",
-            "Size" => 10,
+            "Size" => 25,
             "Default" => 1,
         ],
         "expirationtype" => [
@@ -163,16 +163,16 @@ function lukittu_ConfigOptions() {
         ],
         "expirationdate" => [
             "FriendlyName" => "Expiration Date",
-            "Description" => "YYYY-MM-DD",
+            "Description" => "",
             "Type" => "text",
-            "Size" => 10,
+            "Size" => 25,
             "Default" => "9999-12-31",
         ],
         "expirationdays" => [
             "FriendlyName" => "Expiration Days",
             "Description" => "",
             "Type" => "text",
-            "Size" => 10,
+            "Size" => 25,
             "Default" => 30,
         ]
     ];
