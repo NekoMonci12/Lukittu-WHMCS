@@ -336,8 +336,16 @@ function lukittu_GenerateKey($inputString) {
     return strtoupper($licenseFormatted);
 }
 
-function lukittu_CreateLicense(array $params, array $options): array
+function lukittu_CreateLicenseIfNotExists(array $params, array $options): string
 {
+    $username = $options['username'];
+    $serviceid = $options['serviceid'];
+
+    $existingKey = lukittu_GetKey($params, $username, $serviceid);
+    if (!empty($existingKey)) {
+        return $existingKey;
+    }
+
     $endpoint = "/licenses";
 
     $payload = [
@@ -348,7 +356,18 @@ function lukittu_CreateLicense(array $params, array $options): array
         "expirationStart" => $options['expirationStart'],
         "expirationType" => $options['expirationType'],
         "ipLimit" => isset($options['ipLimit']) ? (int)$options['ipLimit'] : 0,
-        "metadata" => $options['metadata'] ?? [],
+        "metadata" => [
+            [
+                "key" => "serviceid",
+                "value" => $serviceid,
+                "locked" => true
+            ],
+            [
+                "key" => "username",
+                "value" => $username,
+                "locked" => false
+            ]
+        ],
         "seats" => isset($options['seats']) ? (int)$options['seats'] : 1,
         "suspended" => $options['suspended'] ?? false,
         "sendEmailDelivery" => $options['sendEmailDelivery'] ?? false
@@ -356,7 +375,11 @@ function lukittu_CreateLicense(array $params, array $options): array
 
     $response = lukittu_API($params, $endpoint, $payload, "POST");
 
-    return $response;
+    if (($response['status_code'] ?? 500) !== 200) {
+        throw new Exception("Failed to create license. Status code: {$response['status_code']}");
+    }
+
+    return $response['data']['licenseKey'] ?? '';
 }
 
 function lukittu_CreateAccount(array $params)
@@ -376,26 +399,11 @@ function lukittu_CreateAccount(array $params)
             "seats" => lukittu_GetOption($params, 'seats'),
             "suspended" => false,
             "sendEmailDelivery" => false,
-            "metadata" => [
-                [
-                    "key" => "serviceid",
-                    "value" => $serviceid,
-                    "locked" => true
-                ],
-                [
-                    "key" => "username",
-                    "value" => $username,
-                    "locked" => false
-                ]
-            ]
+            "username" => $username,
+            "serviceid" => $serviceid
         ];
 
-        $response = lukittu_CreateLicense($params, $options);
-
-        if ($response['status_code'] !== 200) {
-            throw new Exception("Failed to create license. Status code: {$response['status_code']}");
-        }
-
+        lukittu_CreateLicenseIfNotExists($params, $options);
     } catch (Exception $e) {
         return $e->getMessage();
     }
