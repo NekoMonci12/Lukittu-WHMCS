@@ -48,8 +48,22 @@ function lukittu_GetHostname(array $params) {
     return rtrim($hostname, '/');
 }
 
+function lukittu_GetTeamID(array $params) {
+    $teamId = $params['username'];
+    if ($teamId === '') throw new Exception('Could not find the panel\'s TeamID - did you configure server group for the product?');
+
+    // For whatever reason, WHMCS converts some characters of the hostname to their literal meanings (- => dash, etc) in some cases
+    foreach([
+        'DASH' => '-',
+    ] as $from => $to) {
+        $teamId = str_replace($from, $to, $teamId);
+    }
+
+    return $teamId;
+}
+
 function lukittu_API(array $params, $endpoint, array $data = [], $method = "GET", $dontLog = false) {
-    $url = lukittu_GetHostname($params) . '/api/v1/dev/teams/' . $endpoint;
+    $url = lukittu_GetHostname($params) . '/api/v1/dev/teams/' . lukittu_GetTeamID($params) . '/' . $endpoint;
 
     $curl = curl_init();
     curl_setopt($curl, CURLOPT_URL, $url);
@@ -62,7 +76,7 @@ function lukittu_API(array $params, $endpoint, array $data = [], $method = "GET"
     curl_setopt($curl, CURLOPT_TIMEOUT, 5);
 
     $headers = [
-        "Authorization: " . $params['serverpassword'],
+        "Authorization: Bearer " . $params['serverpassword'],
     ];
 
     if($method === 'POST' || $method === 'PATCH') {
