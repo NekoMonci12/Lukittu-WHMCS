@@ -88,16 +88,37 @@ function lukittu_API(array $params, $endpoint, array $data = [], $method = "GET"
     curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
 
     $response = curl_exec($curl);
-    $responseData = json_decode($response, true);
-    $responseData['status_code'] = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    
-    if($responseData['status_code'] === 0 && !$dontLog) logModuleCall("Lukittu", "CURL ERROR", curl_error($curl), "");
-
+    $curlError = curl_error($curl);
+    $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
     curl_close($curl);
 
-    if(!$dontLog) logModuleCall("Lukittu", $method . " - " . $url,
-        isset($data) ? json_encode($data) : "",
-        print_r($responseData, true));
+    // Init return
+    $responseData = [
+        'status_code' => $httpCode,
+    ];
+
+    // Jika sukses decode
+    if ($response !== false && ($decoded = json_decode($response, true)) !== null) {
+        $responseData += $decoded; // merge hasil response
+    } else if (!$dontLog) {
+        // Log error CURL
+        logModuleCall("Lukittu", "CURL ERROR", [
+            'error' => $curlError,
+            'url' => $url,
+            'data' => $data,
+            'method' => $method
+        ], $response);
+    }
+
+    if (!$dontLog) {
+        logModuleCall(
+            "Lukittu",
+            $method . " " . $url,
+            json_encode($data),
+            print_r($responseData, true),
+            $curlError
+        );
+    }
 
     return $responseData;
 }
@@ -284,11 +305,10 @@ function lukittu_GenerateKey($inputString) {
 function lukittu_CreateAccount(array $params)
 {
     try {
-        $name = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
-        $active = true;
-        $sendEmails = true;
+        $username = $params['clientsdetails']['firstname'] . ' ' . $params['clientsdetails']['lastname'];
+        $suspended = false;
+        $sendEmails = false;
 
-        $username = $params['username'];
         $serviceid = 'WHMCS-' . $params['serviceid'];
 
         $iplimit = lukittu_GetOption($params, 'iplimit');
@@ -316,7 +336,7 @@ function lukittu_CreateAccount(array $params)
         ];
 
 
-        $endpoint = "licenses";
+        $endpoint = "/licenses";
 
         $inputString = $params['serviceid'] . '-' . $params['username'];
 
@@ -324,19 +344,19 @@ function lukittu_CreateAccount(array $params)
             "customerIds" => [$customerid],
             "productIds" => [$productid],
             "expirationDate" => $expirationDate,
-            "expirationDays" => $expirationDays,
-            "expirationStart" => (int) $expirationStart,
+            "expirationDays" => (int) $expirationDays,
+            "expirationStart" => $expirationStart,
             "expirationType" => $expirationType,
-            "ipLimit" => $iplimit,
+            "ipLimit" => (int) $iplimit,
             "metadata" => $metadata,
-            "seats" => $seats,
-            "suspended" => $active,
+            "seats" => (int) $seats,
+            "suspended" => $suspended,
             "sendEmailDelivery" => $sendEmails
         ];
 
         $response = lukittu_API($params, $endpoint, $data, "POST");
 
-        if ($response['status_code'] !== 201) {
+        if ($response['status_code'] !== 200) {
             throw new Exception("Failed to execute command. Status code: {$response['status_code']}");
         }
     } catch (Exception $e) {
