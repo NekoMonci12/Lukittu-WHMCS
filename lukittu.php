@@ -385,6 +385,12 @@ function lukittu_CreateLicense(array $params, array $options): string
         "sendEmailDelivery" => $options['sendEmailDelivery'] ?? false
     ];
 
+    if (strtoupper($options['expirationType']) === "NEVER") {
+        $payload["expirationStart"] = null;
+    } else {
+        $payload["expirationStart"] = $options['expirationStart'];
+    }
+
     $response = lukittu_API($params, $endpoint, $payload, "POST");
 
     if (($response['status_code'] ?? 500) !== 200) {
