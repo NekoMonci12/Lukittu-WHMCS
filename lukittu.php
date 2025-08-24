@@ -156,8 +156,8 @@ function lukittu_ConfigOptions() {
             "Size" => 25,
             "Default" => 1,
         ],
-        "seats" => [
-            "FriendlyName" => "License Seats",
+        "hwidLimit" => [
+            "FriendlyName" => "HWID Limit",
             "Description" => "",
             "Type" => "text",
             "Size" => 25,
@@ -380,7 +380,7 @@ function lukittu_CreateLicense(array $params, array $options): string
                 "locked" => false
             ]
         ],
-        "seats" => isset($options['seats']) ? (int)$options['seats'] : 1,
+        "hwidLimit" => isset($options['hwidLimit']) ? (int)$options['hwidLimit'] : 1,
         "suspended" => $options['suspended'] ?? false,
         "sendEmailDelivery" => $options['sendEmailDelivery'] ?? false
     ];
@@ -414,7 +414,7 @@ function lukittu_CreateAccount(array $params)
             "expirationDate" => lukittu_GetOption($params, 'expirationdate'),
             "expirationDays" => lukittu_GetOption($params, 'expirationdays'),
             "ipLimit" => lukittu_GetOption($params, 'iplimit'),
-            "seats" => lukittu_GetOption($params, 'seats'),
+            "hwidLimit" => lukittu_GetOption($params, 'hwidLimit'),
             "suspended" => false,
             "sendEmailDelivery" => false,
             "username" => $username,
@@ -465,7 +465,7 @@ function lukittu_UnsuspendAccount(array $params)
             "expirationDate" => lukittu_GetOption($params, 'expirationdate'),
             "expirationDays" => lukittu_GetOption($params, 'expirationdays'),
             "ipLimit" => lukittu_GetOption($params, 'iplimit'),
-            "seats" => lukittu_GetOption($params, 'seats'),
+            "hwidLimit" => lukittu_GetOption($params, 'hwidLimit'),
             "suspended" => false,
             "sendEmailDelivery" => false,
             "username" => $username,
@@ -533,7 +533,7 @@ function lukittu_ChangePackage(array $params)
             "expirationDate" => lukittu_GetOption($params, 'expirationdate'),
             "expirationDays" => lukittu_GetOption($params, 'expirationdays'),
             "ipLimit" => lukittu_GetOption($params, 'iplimit'),
-            "seats" => lukittu_GetOption($params, 'seats'),
+            "hwidLimit" => lukittu_GetOption($params, 'hwidLimit'),
             "suspended" => false,
             "sendEmailDelivery" => false,
             "username" => $username,
@@ -570,7 +570,7 @@ function lukittu_Renew(array $params)
             "expirationDate" => lukittu_GetOption($params, 'expirationdate'),
             "expirationDays" => lukittu_GetOption($params, 'expirationdays'),
             "ipLimit" => lukittu_GetOption($params, 'iplimit'),
-            "seats" => lukittu_GetOption($params, 'seats'),
+            "hwidLimit" => lukittu_GetOption($params, 'hwidLimit'),
             "suspended" => false,
             "sendEmailDelivery" => false,
             "username" => $username,
