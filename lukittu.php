@@ -380,7 +380,7 @@ function lukittu_CreateLicense(array $params, array $options): string
                 "locked" => false
             ]
         ],
-        "seats" => isset($options['seats']) ? (int)$options['seats'] : 1,
+        "hwidLimit" => isset($options['seats']) ? (int)$options['seats'] : 1,
         "suspended" => $options['suspended'] ?? false,
         "sendEmailDelivery" => $options['sendEmailDelivery'] ?? false
     ];
